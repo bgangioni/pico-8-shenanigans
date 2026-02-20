@@ -2,6 +2,18 @@ pico-8 cartridge // http://www.pico-8.com
 version 43
 __lua__
 function _init()
+
+  scene = 1
+
+  texto = "lo tienes en tu adn"
+  tx = 4
+  ty = 4
+  tspeed = 1
+  txd = 1
+  tyd = 1
+  
+  centerframe = 16
+  debug_counter = 0
   angv = 0
   testpoint2d = {}
   testpoint2d.x = 0
@@ -12,7 +24,18 @@ function _init()
   testpoint3d.y = (-0.5)
   testpoint3d.z = 1
 
-  adn_nodes = 25
+  initx1 = 0
+  inity1 = 0
+  initz1 = 0
+  initx2 = 0
+  inity2 = 0
+  initz2 = 0
+  
+  pulse_repeat = 0
+  pulse = -0.01
+  adn_z = 2
+
+  adn_nodes = 10
   adn ={}
   for i =1, adn_nodes do
     local a = (i*2)-1
@@ -20,16 +43,16 @@ function _init()
 
     adn[a] ={}
     adn[a].x = -0.1
-    adn[a].y = 0.2 - (i-1)*0.025
+    adn[a].y = 0.2 - (i-1)*0.05
     adn[a].z = 0
-
+	
     adn[b] = {}
     adn[b].x = 0.1
     adn[b].y = adn[a].y
     adn[b].z = 0
 
-    adn[a] = rotate_xz(adn[a],0.1*(i-1))
-    adn[b] = rotate_xz(adn[b],0.1*(i-1))
+    adn[a] = rotate_xz(adn[a],0.05*(i-1))
+    adn[b] = rotate_xz(adn[b],0.05*(i-1))
 
   end
   ambientbw ={7,6,13,5,1}
@@ -87,36 +110,22 @@ function pset3d(point3d)
   psetnorm(project3to2(point3d))
 end
 
-function _update()
---  testpoint3d.z += 0.1
-  for i = 1, numstars  do
-    if starfield[i].z > (-5.1) then
-      starfield[i].z -= 0.1
-      starfield[i].color = ambient[flr((starfield[i].z+4)/2.5)+1]
-    else
-      starfield[i].z = 5
-      starfield[i].x = rnd(8)-4
-      starfield[i].y = rnd(8)-4
-      starfield[i].color = ambient[1]
-    end
-  end
-  for i =1, (adn_nodes*2) do
-    --adn[i] = rotate_xz(adn[i],1)
---    adn[i].z +=0.01    
-  end
-  angv += 0.01
-  if angv > 1 then angv =0 end
-end
-
 function rotate_xz(point3d,angle)
   local newpoint3d = copypoint2d(point3d)
   local s = sin(angle)
   local c = cos(angle)
 
   newpoint3d.x = point3d.x*c - point3d.z*s
-  newpoint3d.z = point3d.x*s - point3d.z*c
+  newpoint3d.z = point3d.x*s + point3d.z*c
 
   return newpoint3d
+end
+
+function closest(pointa, pointb)
+	if pointa.z > pointb.z then return pointb else return pointa end
+end
+function furthest(pointa,pointb)
+	if pointa.z < pointb.z then return pointb else return pointa end
 end
 
 function draw_adn(x,y,z,angle)
@@ -128,19 +137,59 @@ function draw_adn(x,y,z,angle)
 
     newa.x = newa.x + x
     newb.x = newb.x + x
+	
     newa.y = newa.y + y
     newb.y = newb.y + y
-    newa.z = newa.z + z
+	
+	newa.z = newa.z + z
     newb.z = newb.z + z
 
-    local pointa = normalize(project3to2(newa))
-    local pointb = normalize(project3to2(newb))
-
-    line(pointa.x,pointa.y,pointb.x, pointb.y, 11)
+    local cl = normalize(project3to2(closest(newa,newb)))
+    local fr = normalize(project3to2(furthest(newa,newb)))
+	
+	circfill(fr.x,fr.y,1,5)
+    line(fr.x,fr.y,cl.x, cl.y, 3)
+	circfill(cl.x,cl.y,1,13)
   end
 end
 
+function _update()
+ if scene == 1 then
+ --  debug_counter += 1
+  
+  tx += (txd * tspeed)
+  ty += (tyd * tspeed)
+  if tx > 50 or tx < 2 then txd = txd * (-1) end
+  if ty > 122 or ty < 2 then tyd = tyd * (-1) end 
+  
+  for i = 1, numstars  do
+    if starfield[i].z > (-5.1) then
+      starfield[i].z -= 0.1
+      starfield[i].color = ambient[flr((starfield[i].z+4)/2.5)+1]
+    else
+      starfield[i].z = 5
+      starfield[i].x = rnd(8)-4
+      starfield[i].y = rnd(8)-4
+      starfield[i].color = ambient[1]
+    end
+  end
+
+  angv -= 0.01
+  if angv < (-1) then angv += 1 end
+
+  if adn_z == 0 then adn_z += pulse
+  else adn_z = adn_z + (pulse * adn_z * adn_z) end
+  
+  pulse_repeat += 1
+  if pulse_repeat > 100 then
+	pulse = pulse * (-1)
+	pulse_repeat = 0
+  end
+ end  
+end
+
 function _draw()
+ if scene == 1 then
   cls()
 --  psetnorm(testpoint2d)
   for i = 1 , numstars do
@@ -148,10 +197,16 @@ function _draw()
     pset3d(translate_z(starfield[i],5))
   end
 
-  rect(32,32,96,96, 3)
-  draw_adn(0,0,0.75,angv)
+  print(texto,tx-1+rnd(2),ty-1+rnd(2),flr(11+adn_z*12))
+  print(texto,tx+rnd(2),ty+rnd(2),flr(11+adn_z*12)+1)
+  print(texto,tx,ty,7)
+  
+  rect(64-centerframe+1,64-centerframe+1,64+centerframe+1,64+centerframe+1,1)
+  rect(64-centerframe,64-centerframe,64+centerframe,64+centerframe, 2)
+  draw_adn(0,0,adn_z,angv)
+  
+ end
 end
-
 
 __gfx__
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
