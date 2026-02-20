@@ -2,154 +2,22 @@ pico-8 cartridge // http://www.pico-8.com
 version 43
 __lua__
 function _init()
-  angv = 0
-  testpoint2d = {}
-  testpoint2d.x = 0
-  testpoint2d.y = 0
 
-  testpoint3d = {}
-  testpoint3d.x = 0
-  testpoint3d.y = (-0.5)
-  testpoint3d.z = 1
-
-  adn_nodes = 25
-  adn ={}
-  for i =1, adn_nodes do
-    local a = (i*2)-1
-    local b = i*2
-
-    adn[a] ={}
-    adn[a].x = -0.1
-    adn[a].y = 0.2 - (i-1)*0.025
-    adn[a].z = 0
-
-    adn[b] = {}
-    adn[b].x = 0.1
-    adn[b].y = adn[a].y
-    adn[b].z = 0
-
-    adn[a] = rotate_xz(adn[a],0.1*(i-1))
-    adn[b] = rotate_xz(adn[b],0.1*(i-1))
-
-  end
-  ambientbw ={7,6,13,5,1}
-  ambientcolor ={8,9,10,11,12}
-  ambient= ambientbw
-
-  numstars = 100
-  starfield ={}
-  for i = 1 , numstars do
-    starfield[i] = {}
-    starfield[i].x = rnd(8)-4
-    starfield[i].y = rnd(8)-4
-    starfield[i].z = rnd(10)-4
-  end
-
-end
-
-function copypoint2d(point2d)
-  local newp = {}
-  for k,v in pairs(point2d) do
-    newp[k] = v
-  end
-  return newp
-end
-
-function translate_z(point3d, dz)
-  local newpoint3d = copypoint2d(point3d)
-  newpoint3d.z += dz
-  return newpoint3d
-end
-
-function normalize(point2d)
-  local newpoint2d = copypoint2d(point2d)
-
-  newpoint2d.x = flr((point2d.x * 64) + 64)
-  newpoint2d.y = flr((point2d.y * 64 * (-1)) + 64)
-  return newpoint2d
-end
-
-function psetnorm(point2d)
-  local normalp = normalize(point2d)
-  pset(normalp.x,normalp.y,point2d.color)
-end
-
-function project3to2(point3d)
-  local point2d = {}
-  point2d.x = point3d.x / point3d.z
-  point2d.y = point3d.y / point3d.z
-  point2d.color = point3d.color
-  return point2d
-
-end
-
-function pset3d(point3d)
-  psetnorm(project3to2(point3d))
 end
 
 function _update()
---  testpoint3d.z += 0.1
-  for i = 1, numstars  do
-    if starfield[i].z > (-5.1) then
-      starfield[i].z -= 0.1
-      starfield[i].color = ambient[flr((starfield[i].z+4)/2.5)+1]
-    else
-      starfield[i].z = 5
-      starfield[i].x = rnd(8)-4
-      starfield[i].y = rnd(8)-4
-      starfield[i].color = ambient[1]
-    end
-  end
-  for i =1, (adn_nodes*2) do
-    --adn[i] = rotate_xz(adn[i],1)
---    adn[i].z +=0.01    
-  end
-  angv += 0.01
-  if angv > 1 then angv =0 end
-end
 
-function rotate_xz(point3d,angle)
-  local newpoint3d = copypoint2d(point3d)
-  local s = sin(angle)
-  local c = cos(angle)
-
-  newpoint3d.x = point3d.x*c - point3d.z*s
-  newpoint3d.z = point3d.x*s - point3d.z*c
-
-  return newpoint3d
-end
-
-function draw_adn(x,y,z,angle)
-  for i = 1, adn_nodes do
-    local a = (i*2)-1
-    local b = (i*2)
-    local newa = rotate_xz(copypoint2d(adn[a]),angle)
-    local newb = rotate_xz(copypoint2d(adn[b]),angle)
-
-    newa.x = newa.x + x
-    newb.x = newb.x + x
-    newa.y = newa.y + y
-    newb.y = newb.y + y
-    newa.z = newa.z + z
-    newb.z = newb.z + z
-
-    local pointa = normalize(project3to2(newa))
-    local pointb = normalize(project3to2(newb))
-
-    line(pointa.x,pointa.y,pointb.x, pointb.y, 11)
-  end
 end
 
 function _draw()
-  cls()
---  psetnorm(testpoint2d)
-  for i = 1 , numstars do
---    pset3d(translate_z(rotate_xz(starfield[i],angv),10))
-    pset3d(translate_z(starfield[i],5))
-  end
 
-  rect(32,32,96,96, 3)
-  draw_adn(0,0,0.75,angv)
+  cls()
+  --pset(64,64,10)
+  spr(1,60-4,60-4)
+  spr(2,68-4,60-4)
+  spr(17,60-4,68-4)
+  spr(18,68-4,68-4)
+  
 end
 
 
