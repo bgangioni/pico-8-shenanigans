@@ -10,13 +10,25 @@ function _init()
 
   px = 64
   py = 64
+  minx,miny,maxx,maxy = 5,16,124,96
+  pcount = 0
+  life = 99
+  bombready = 0
 
-		bx = nil
-		by = nil
-		bframe = nil
-		
-		rx = nil
-		ry = nil  
+  bx = nil
+  by = nil
+  bframe = nil
+  
+  rx = nil
+  ry = nil  
+
+-- rank handling
+  rango = {
+  "> ", ">> ", ">>>",
+  "x ", "x>", "x>>",
+  "* ", "** ", "***",
+  }
+  points = 0
 
   starspeed = 1
   countstars = 50
@@ -27,11 +39,25 @@ function _init()
     starfield[i].y = flr(rnd(128))
     starfield[i].z = flr(rnd(4))
   end
+
+  enemies ={}
+  for i=1, 4 do
+    enemies[i] = {}
+    enemies[i].sprite = i +2
+    enemies[i].x = 96
+    enemies[i].y = 16+16*i
+    enemies[i].hp = 1
+    enemies[i].dead = false
+  end
 end
 
 function _update()
+--- REPLACE THIS
+
+  points += 10
+--- END REPLACE
+
   if btnp(🅾️) then
-    --pal( {[0]=0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15} ,1 )
     if not rx then
       rx = {}
       rx[1] = px+flr(rnd(5))-2
@@ -44,16 +70,17 @@ function _update()
   end
   
   if btnp(❎) then
-    if not bx then
+    if not bx and bombready > 98 then
       bx = px
       by = py
+      bombready = 0
     end
   end
   
-  if btn(⬆️) and py >   4 then py -=1 end
-  if btn(⬇️) and py < 116 then py +=1 end
-  if btn(➡️) and px < 116 then px +=1 end
-  if btn(⬅️) and px >   4 then px -=1 end
+  if btn(⬆️) and py >   miny then py -=1 end
+  if btn(⬇️) and py < maxy then py +=1 end
+  if btn(➡️) and px < maxx then px +=1 end
+  if btn(⬅️) and px >   minx then px -=1 end
   
   if bframe == 0 then bframe = nil end
   if bframe then bframe -=1 end
@@ -63,7 +90,7 @@ function _update()
   end
   
   if rx then
-    local rxspeed = (2+flr(rx[1]/16))
+    local rxspeed = 10 --(2+flr(rx[1]/16))
     rx[1] += rxspeed 
     rx[2] += rxspeed 
     rx[3] += rxspeed 
@@ -90,7 +117,7 @@ function _draw()
   end
 
   for i = 1, 4 do
-    spr(i+2,96,16+16*i)
+    spr(enemies[i].sprite,enemies[i].x,enemies[i].y)
   end
   
   if bframe then
@@ -100,16 +127,114 @@ function _draw()
     end
   end
 
-	 spr(1,px,py)
-	 if bx then
-	   spr(17,bx,by)
+  if bx then
+    spr(17,bx-4,by-4)
   end  
+
+  spr(1,px-4,py-4)
   
 -- cockpit and stats
-  rectfill(0,0,128,12,1)
---  spr(8,8,0)
-  print("picostar 0.1",4,4,7)
+  rectfill(0,0,128,11,1)
+  line(0,11,127,11,2)
+  print("picostar 0.1",5,5,2)
+  print("picostar 0.1",4,4,4)
+
+  rectfill(0,100,127,127,1)
+  line(0,100,127,100,2)
+  print(":rango:",81,105,2)
+  print(":rango:",80,104,4)
+  print((rango[1+flr(points / 1000)] or "\\*/"),85,113,2)
+  print((rango[1+flr(points / 1000)] or "\\*/"),84,112,4)
+
+  pcount +=1
+  draw_panel(10,109,flr(pcount/20))
+  draw_panel(26,109,flr(sin(1/pcount)))
+  draw_panel(42,109,flr(pcount/10))
+  
+  draw_bombcharge(bombready,27,121)
+  if bombready < 99 then bombready +=0.5 end
+
+  draw_life(life,116,114)
+  life -=0.1
+
+  draw_comm(64,114)
 end
+
+function draw_bombcharge(brdy,x,y)
+  rectfill(x-20,y-2,x+18,y,4)
+  rectfill(x-18,y,x+20,y+2,2)
+  rectfill(x-19,y-1,x+19,y+1,1)
+  for i = 1, flr(brdy/5) do
+    pset(x-20+(2*i),y,2+flr(brdy/100*4))
+  end
+end
+
+function draw_comm(x,y)
+  rectfill(x-10,y-10,x+8,y+8,4)
+  rectfill(x-8,y-8,x+10,y+10,3)
+  rectfill(x-9,y-9,x+9,y+9,0)
+  pset(x+9,y-9,3)
+  pset(x-9,y+9,4)
+  pset(x+8,y-9,2)
+  pset(x+9,y-8,2)
+  pset(x-8,y+9,2)
+  pset(x-9,y+8,2)
+
+  if bombready > 98 then
+    circ(x,y,7,1+flr(rnd(6)))
+    spr(17,x-4,y-4)
+  else
+    spr(3+flr(rnd(4)),x-4,y-4)
+  end
+end
+
+function draw_life(life,x,y)
+  rectfill(x-5,y-10,x+3,y+8,4)
+  rectfill(x-3,y-8,x+5,y+10,2)
+  rectfill(x-4,y-9,x+4,y+9,1)
+
+  for i = 1, flr(life/10) do
+    line(x-3,y+10-(2*i),x+3,y+10-(2*i), 2+flr(life/100*4))
+  end
+
+end
+
+function draw_panel(px,py,ind)
+  local indicators={{},{},{},{},{},{},{},{}}
+  indicators[1].x = px
+  indicators[1].y = py+3
+  indicators[2].x = px-2
+  indicators[2].y = py+2
+  indicators[3].x = px-3
+  indicators[3].y = py
+  indicators[4].x = px-2
+  indicators[4].y = py-2
+  indicators[5].x = px
+  indicators[5].y = py-3
+  indicators[6].x = px+2
+  indicators[6].y = py-2
+  indicators[7].x = px+3
+  indicators[7].y = py
+  indicators[8].x = px+2
+  indicators[8].y = py+2
+
+  circfill(px-1,py-1,4,4)
+  circfill(px+1,py+1,4,2)
+  circfill(px,py,4,1)
+  line(px,py,indicators[1+ind%8].x,indicators[1+ind%8].y,4)
+
+  pset(px,py-3,2)
+  pset(px-3,py,2)
+  pset(px+3,py,2)
+  pset(px,py+3,2)
+  pset(px+2,py+2,2)
+  pset(px-2,py-2,2)
+  pset(px-2,py+2,2)
+  pset(px+2,py-2,2)
+  
+end
+
+
 __gfx__
 00000000000000000000000022222200000022220002000000222000000000000433333333333333333333200000000000000000000000000000000000000000
 00000000333300000000000002333320002233200020000202333000000000000433333333333333333333200000000000000000000000000000000000000000
