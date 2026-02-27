@@ -2,7 +2,7 @@ pico-8 cartridge // http://www.pico-8.com
 version 43
 __lua__
 function _init()
-	--activate additional colors
+--[[	--activate additional colors
 	poke( 0x5f2e, 1 )
 	
 	--PALETTES source: nerdyteachers.com
@@ -19,11 +19,12 @@ function _init()
 	--custom palette based on p_yellow + some red
 	p_orange = {[0]=0,136,137,  9, 10,135,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15}
 --	pal(p_brown  ,1 )
-
+--]]
 	--custom gradients for sprites
 	gradient = {
+		[0]= {0},
 		{9,9,9,7,10,10,10,10},
-		{12,12,12,7,11,11,11,11}
+		{12,12,12,7,11,11,11,11},
 	}
 
 -- setting up text sprites
@@ -83,6 +84,8 @@ function _init()
 		[" "] = 93,
 	}
 	
+	state_delay = 0
+	
 	timer = {}
 	timer[1] = 0
 	timer[2] = 100
@@ -117,10 +120,39 @@ function _init()
 	selected = 1
 	pressed = 2
 	press_delay = 10
-	
-	button = {}
+
+	menu_buttons = {}
+	for i = 1, 3 do
+		menu_buttons[(i*2)-1] = {
+			x = 72,
+			y = 32+i*16,
+			state = default,
+			sprite = 2,
+			sprite_width = 1,
+			sprite_height = 1,
+			centerpoint = {x = 0, y = 0},
+			last_pressed = press_delay,
+			x_flipped = true,
+			y_flipped = false
+		}
+		menu_buttons[i*2] = {
+			x = 112,
+			y = 32+i*16,
+			state = default,
+			sprite = 2,
+			sprite_width = 1,
+			sprite_height = 1,
+			centerpoint = {x = 0, y = 0},
+			last_pressed = press_delay,
+			x_flipped = false,
+			y_flipped = false
+		}
+	end
+	menu_buttons[1].state = selected
+
+	buttons = {}
 	for i = 1, 4 do
-		button[(i*2)-1] = {
+		buttons[(i*2)-1] = {
 			x = 8,
 			y = 16+i*16,
 			state = default,
@@ -132,7 +164,7 @@ function _init()
 			x_flipped = true,
 			y_flipped = false
 		}
-		button[i*2] = {
+		buttons[i*2] = {
 			x = 48,
 			y = 16+i*16,
 			state = default,
@@ -145,8 +177,8 @@ function _init()
 			y_flipped = false
 		}
 	end	
-	button[1].state = selected
-	button[9] = {
+	buttons[1].state = selected
+	buttons[9] = {
 		x = 28,
 		y = 96,
 		state = default,
@@ -241,25 +273,92 @@ function font_print(t,x,y,gradient)
 	pal(7,7)
 end
 
+function draw_buttons(buttons,selector)
+	for b in all(buttons) do
+		if b.state == selected then
+			pal(default_light,selected_light)
+			pal(default_shadow,selected_shadow)
+			spr(b.sprite,b.x,b.y,b.sprite_width, b.sprite_height,b.x_flipped,b.y_flipped)
+			pal(default_light,default_light)
+			pal(default_shadow,default_shadow)
+		elseif b.state == pressed then
+			pal(default_light,pressed_light)
+			pal(default_shadow,pressed_shadow)
+			spr(b.sprite,b.x,b.y,b.sprite_width, b.sprite_height,b.x_flipped,b.y_flipped)
+			pal(default_light,default_light)
+			pal(default_shadow,default_shadow)
+		else -- default
+			spr(b.sprite,b.x,b.y,b.sprite_width, b.sprite_height,b.x_flipped,b.y_flipped)
+		end
+	end
+end
+
+function update_buttons(buttons,selector)
+	if btnp(0) then
+		if not (buttons[selector.selection+1].state == pressed) then buttons[selector.selection+1].state = default end
+		selector.selection = (selector.selection - 1)%#(buttons)
+		buttons[selector.selection+1].state = selected
+	end
+	if btnp(1) then
+		if not (buttons[selector.selection+1].state == pressed) then buttons[selector.selection+1].state = default end
+		selector.selection = (selector.selection + 1)%#(buttons)
+		buttons[selector.selection+1].state = selected
+	end
+	if btnp(2) then
+		if not (buttons[selector.selection+1].state == pressed) then buttons[selector.selection+1].state = default end
+		if selector.selection == 0 then
+			selector.selection = (selector.selection - 1)%#(buttons)
+		else
+			selector.selection = (selector.selection - 2)%#(buttons)
+		end
+		buttons[selector.selection+1].state = selected
+	end
+	if btnp(3) then
+		if not (buttons[selector.selection+1].state == pressed) then buttons[selector.selection+1].state = default end
+		if (selector.selection == 7) then
+			selector.selection = (selector.selection + 1)%#(buttons)
+		else
+			selector.selection = (selector.selection + 2)%#(buttons)
+		end
+		buttons[selector.selection+1].state = selected
+	end
+	for b in all(buttons) do
+		if b.state == pressed then
+			b.last_pressed +=1
+			if b.last_pressed > press_delay then
+				if b == buttons[selector.selection+1] then
+					b.state = selected
+				else
+					b.state = default
+				end
+			end
+		end
+	end
+	if btnp(5) then
+		buttons[selector.selection+1].state = pressed
+		buttons[selector.selection+1].last_pressed = 0
+	end
+end
+
 function _update()
 	if state == "debug" then
 	elseif state == "main" then
-		if btn(5) then state = "playing" end
-	elseif state == "playing" then
-		if btnp(0) then
-			if not (button[selector.selection+1].state == pressed) then button[selector.selection+1].state = default end
-			selector.selection = (selector.selection - 1)%#(button)
-			button[selector.selection+1].state = selected
+		while state_delay > 0 do
+			flip()
+			state_delay -=1
 		end
-		if btnp(1) then
-			if not (button[selector.selection+1].state == pressed) then button[selector.selection+1].state = default end
-			selector.selection = (selector.selection + 1)%#(button)
-			button[selector.selection+1].state = selected
+		update_buttons(menu_buttons,selector)
+		if btn(4) then
+			selector.selection = 0
+			state = "playing"
+		end
+	elseif state == "playing" then
+		while state_delay > 0 do
+			flip()
+			state_delay -=1
 		end
 		if btnp(5) then
-			button[selector.selection+1].state = pressed
-			button[selector.selection+1].last_pressed = 0
-			if selector.selection == 0 then flag.sprite = 4+ (flag.sprite-4-1)%56
+			if     selector.selection == 0 then flag.sprite = 4+ (flag.sprite-4-1)%56
 			elseif selector.selection == 1 then flag.sprite = 4+ (flag.sprite-4+1)%56
 			elseif selector.selection == 2 then flag.colors[1] = (flag.colors[1]+1)%16
 			elseif selector.selection == 3 then flag.colors[1] = (flag.colors[1]-1)%16
@@ -273,20 +372,13 @@ function _update()
 			end
 		end
 		
-		for b in all(button) do
-			if b.state == pressed then
-				b.last_pressed +=1
-				if b.last_pressed > press_delay then
-					if b == button[selector.selection+1] then
-						b.state = selected
-					else
-						b.state = default
-					end
-				end
-			end
+		if btnp(4) then
+			state = "main"
+			state_delay = 15
 		end
-	--	if btn(2) then selector.y -= 1 end
-	--	if btn(3) then selector.y += 1 end
+
+		update_buttons(buttons, selector)
+		
 	elseif state == "game_over" then
 		print("game over")
 	else
@@ -299,49 +391,55 @@ function _draw()
 	if state == "debug" then
 
 	elseif state == "main" then
-		cls()
-		local t = "crea tu"
-		font_print(t, 63-#(t)*8/2, 32,gradient[2])
+		cls(5)
+		local t = "flag game!"
+		font_print(t, 64-#(t)*8/2, 17,gradient[0])
+		font_print(t, 63-#(t)*8/2, 16,gradient[2])
 
-		t = "propia bandera"
-		font_print(t, 63-#(t)*8/2, 48,gradient[2])
+		t = "modo"
+		font_print(t, 9, 49,gradient[0])
+		font_print(t, 8, 48,gradient[2])
+		t = "nivel"
+		font_print(t, 9, 65,gradient[0])
+		font_print(t, 8, 64,gradient[2])
+		t = "idioma"
+		font_print(t, 9, 81,gradient[0])
+		font_print(t, 8, 80,gradient[2])
 
-		t = "presiona x"
-		font_print(t, 63-#(t)*8/2, 64,gradient[1])
+		t = "1jug"
+		font_print(t, 81, 48,gradient[1])
+		t = "faci"
+		font_print(t, 81, 64,gradient[1])
+		t = "espa"
+		font_print(t, 81, 80,gradient[1])
+		
+		
+		draw_buttons(menu_buttons,selector)
 		
 	elseif state == "playing" then
 -- BACKGROUND
 		cls(5)
+		
+		local rect_color = {0,1,2,5}
+		
 		rect(72,40,110,73,1)
 		rect(73,41,111,74,6)
 		rectfill(73,41,110,73,0)
 -- BUTTONS		
 		t = "band"
-		font_print(t,16,32,gradient[1])
+		font_print(t,17,32,gradient[0])
+		font_print(t,16,31,gradient[1])
 		t = "col1"
-		font_print(t,16,48,gradient[1])
+		font_print(t,17,48,gradient[0])
+		font_print(t,16,47,gradient[1])
 		t = "col2"
-		font_print(t,16,64,gradient[1])
+		font_print(t,17,64,gradient[0])
+		font_print(t,16,63,gradient[1])
 		t = "col3"
-		font_print(t,16,80,gradient[1])
-		
-		for b in all(button) do
-			if b.state == selected then
-				pal(default_light,selected_light)
-				pal(default_shadow,selected_shadow)
-				spr(b.sprite,b.x,b.y,b.sprite_width, b.sprite_height,b.x_flipped,b.y_flipped)
-				pal(default_light,default_light)
-				pal(default_shadow,default_shadow)
-			elseif b.state == pressed then
-				pal(default_light,pressed_light)
-				pal(default_shadow,pressed_shadow)
-				spr(b.sprite,b.x,b.y,b.sprite_width, b.sprite_height,b.x_flipped,b.y_flipped)
-				pal(default_light,default_light)
-				pal(default_shadow,default_shadow)
-			else -- default
-				spr(b.sprite,b.x,b.y,b.sprite_width, b.sprite_height,b.x_flipped,b.y_flipped)
-			end
-		end
+		font_print(t,17,80,gradient[0])
+		font_print(t,16,79,gradient[1])
+
+		draw_buttons(buttons,selector)
 
 -- FLAG
 
@@ -446,6 +544,36 @@ bbb00bbb000000000000000006666660000000000000000000000000000000000000000000000000
 07707770077077700000000070700000007070000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 77700070007077700000000000007770000070000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000070007007770000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+000eeeeeee000ee00000000eeeeeeeee000eeeeeeee000eeeeeeee000eeeeeeee000eeeeeeee0000000000000000000000000000000000000000000000000000
+00eeeeeeee00eee0000000eeeeeeeeee00eeeeeeeee00eeeeeeeee00eeeeeeeee00eeeeeeeee0000000000000000000000000000000000000000000000000000
+00eee2222200eee0000000eee2222eee00eee22222200eee22222200eee22222200eee222eee0000000000000000000000000000000000000000000000000000
+00eee0000000eee0000000eee0000eee00eee00000000eee00000000eee00000000eee000eee0000000000000000000000000000000000000000000000000000
+00eee0000000eee0000000eee0000eee00eee00000000eee00000000eee00000000eee000ee20000000000000000000000000000000000000000000000000000
+00eeeeee0000eee0000000eeeeeeeeee00eee0eeeee00eee0eeeee00eeeeeee0000eeeeeee200000000000000000000000000000000000000000000000000000
+00eee2220000eee0000000eee2222eee00eee022eee00eee022eee00eee22220000eee222ee00000000000000000000000000000000000000000000000000000
+00eee0000000eee0000000eee0000eee00eee000eee00eee000eee00eee00000000eee000eee0000000000000000000000000000000000000000000000000000
+00eee0000000eeeeeeee00eee0000eee00eeeeeeeee00eeeeeeeee00eeeeeeeee00eee000eee0000000000000000000000000000000000000000000000000000
+00eee0000000eeeeeeee00eee0000eee00eeeeeeeee00eeeeeeeee00eeeeeeeee00eee000eee0000000000000000000000000000000000000000000000000000
+00ee20000000eeeeeee200eee0000ee200eeeeeeee200eeeeeeee200eeeeeeee200eee000ee20000000000000000000000000000000000000000000000000000
+00220000000022222220002220000220002222222200022222222000222222220002220002200000000000000000000000000000000000000000000000000000
 __sfx__
 000100001c00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00100000107000000000000000000b7000000000000000001070000000000000b70000000000000000000000000000000010700000000b7000070000000000001070000000000000b70000000000000000000000
