@@ -2,17 +2,27 @@ pico-8 cartridge // http://www.pico-8.com
 version 43
 __lua__
 function _init()
-
+-- variable for twister
+ c = 0
+ tshadow = 0
 	--custom gradients for sprites
 	gradient = {
 		[0]= {0},
 		{9,9,9,7,10,10,10,10},
 		{6,11},
-		{5,6,7}
+		{5,6,7},
+		{10,15}
 	}
 	music(0)
 	transition_counter = 15
 	transitioning = false
+	
+	start_counter = 13
+--	starting = true
+	twister_pos_y = 182
+	title_pos_y = -56
+	button_pos_y = -16
+	button_fx = 0
 
 -- setting up text sprites
 	text_sprites = {
@@ -196,62 +206,6 @@ function _init()
 	
 end
 
-function draw_healthbar(health,x,y,width,height,borderc,fillc,backgroundc,is_vertical)
-	health = health or 75
-	x  = x or 63
-	y = y or 63
-	width = width or 50
-	height = height or 10
-	borderc = borderc or 7
-	fillc = fillc or 7
-	backgroundc = backgroundc or 0
-	
-	if width < 5 then width = 5 end
-	if height < 5 then height = 5 end
-	
-	rect(x,y,x+width,y+height,backgroundc)
-	rect(x,y,x+width,y+height,borderc)
-	
-	if health > 0 then
-		if is_vertical then
-			rectfill(x+2,y+height-2-(health/100)*(height-4),x+width-2,y+height-2,fillc)
-		else
-			rectfill(x+2,y+2,x+2+(health/100*(width-4)),y+height-2,fillc)
-		end
-	end
-end
-
-function minimal_healthbar(health,x,y,length,fillc,backgroundc)
-	local h = health / 100 * length
-	line(x,y,x+length,y,backgroundc)
-	if health > 0 then
-		line(x,y,x+h,y,fillc)
-	end
-end
-
-function draw_slim_healthbar(health,x,y,width,height,borderc,fillc,is_vertical)
-	health = health or 75
-	x  = x or 63
-	y = y or 63
-	width = width or 50
-	height = height or 10
-	borderc = borderc or 7
-	fillc = fillc or 7
-	
-	if width < 3 then width = 3 end
-	if height < 3 then height = 3 end
-	
-	rect(x,y,x+width,y+height,borderc)
-	
-	if health > 0 then
-		if is_vertical then
-			rectfill(x+1,y+height-1-(health/100)*(height-2),x+width-1,y+height-1,fillc)
-		else
-			rectfill(x+1,y+1,x+1+(health/100*(width-2)),y+height-1,fillc)
-		end
-	end
-end
-
 function font_print(t,x,y,gradient)
 	local size = #(gradient)
 	if size > 8 then size = 8 end
@@ -341,6 +295,15 @@ end
 function _update()
 	if state == "debug" then
 	elseif state == "main" then
+		button_fx = (button_fx+1)%30
+		c += 4
+		tshadow = (tshadow + 3) % 128
+		if start_counter > 0 then
+			start_counter -= 1
+			title_pos_y += (start_counter)
+			button_pos_y += (start_counter)
+			twister_pos_y -= (start_counter)
+		end
 		if transition_counter == 0 then
 			state = "playing"
 			music(3)
@@ -358,7 +321,7 @@ function _update()
 			transition_counter += 1
 			if transition_counter % divider == 0 then
 				flag.sprite = 4+flr(rnd(56))
-				flag.colors = {flr(rnd(16)),flr(rnd(16)),flr(rnd(16))}
+				flag.colors = {flr(7+rnd(6)),flr(7+rnd(6)),flr(7+rnd(6))}
 				divider = divider *4
 				sfx(1)
 			end
@@ -393,7 +356,7 @@ function _draw()
 
 	elseif state == "main" then
 		cls(5)
-		spr(192,24,24,10,2)
+		spr(192,24,title_pos_y,10,2)
 
 		t = "presiona 🅾️"
 		
@@ -402,9 +365,53 @@ function _draw()
 			font_print(t, 64-#(t)*4, 49+transition_counter,gradient[3])
 				gradient[3][1],gradient[3][2],gradient[3][3] = gradient[3][3],gradient[3][1],gradient[3][2]
 		else
-			font_print(t, 65-#(t)*4, 65,gradient[0])
-			font_print(t, 64-#(t)*4, 64,gradient[2])
+			font_print(t, 65-#(t)*4, button_pos_y+1,gradient[0])
+			font_print(t, 64-#(t)*4, button_pos_y,gradient[2])
+			if button_fx > (28-#(t)) then
+				font_print(t[button_fx-18], (64-#(t)*4)+(button_fx-19)*8, button_pos_y,gradient[4])
+			end
 		end
+	-- TWISTER FLAG EFFECT
+		local tcolors = {}
+		p= {}
+			
+		for i = 0, 127 do
+			if c%(i-tshadow) == 0 or c%(tshadow-i) == 0 then
+				tcolors[1] = 6
+				tcolors[2] = 9
+				tcolors[3] = 13
+			else
+				tcolors[1] = 7
+				tcolors[2] = 10
+				tcolors[3] = 12
+			end
+		
+			a = cos(c/1200+i/2000)*1
+			
+			p[1] ={y = twister_pos_y+sin(a)*16}
+			p[2] ={y = twister_pos_y+sin(a+0.25)*16}
+			p[3] ={y = twister_pos_y+sin(a+0.5)*16}
+			p[4] ={y = twister_pos_y+sin(a+0.75)*16}
+			
+			if (p[1].y < p[2].y) then
+				line(i,p[1].y,i,p[2].y,tcolors[1])
+			end
+			if (p[2].y < p[3].y) then
+				line(i,p[2].y,i,p[3].y,tcolors[2])
+				pset(i,p[2].y,5)
+			end
+			if (p[3].y < p[4].y) then
+				line(i,p[3].y,i,p[4].y,tcolors[1])
+				pset(i,p[3].y,5)
+			end
+			if (p[4].y < p[1].y) then
+				line(i,p[4].y,i,p[1].y,tcolors[3])
+				pset(i,p[4].y,5)
+				pset(i,p[1].y,5)
+	
+			end
+		end
+		
 	elseif state == "playing" then
 -- BACKGROUND
 		cls(5)
@@ -579,9 +586,9 @@ bbb00bbb000000000000000006666660000000000000000000000000000000000000000000000000
 00a920000000aa9a999200aa2000099200aaa9a999200aaa9a999200aaa9a999200aa20009920000000000000000000000000000000000000000000000000000
 00220000000022222220002200000220002222222200022222222000222222220002200002200000000000000000000000000000000000000000000000000000
 __sfx__
-190400001e75722757257572a75722747257472a74722737257372a73222727257272a72222717257172a71222717257172a71222717257172a71200000000000000000000000000000000000000000000000000
-01010000120301204012050000001a0201a0201a0200c0041a0001a0001a0000d0002500425004250042500425004250042500425004250040000418004180041900400004000040b00400004000040000000000
-00010000131101311013110131100d1100d1100d1100d110001000010000100001000010000100091000010009100001000b100001000b1000010009100001000710000100061000010000000000000000000000
+180400001e75722757257572a75722747257472a74722737257372a73222727257272a72222717257172a71222717257172a71222717257172a71200000000000000000000000000000000000000000000000000
+00010000123301234012350003001a3201a3201a3200c3041a3001a3001a3000d3002530425304253042530425304253042530425304253040030418304183041930400304003040b30400304003040030000300
+00010000132101321013210132100d2100d2100d2100d210002000020000200002000020000200092000020009200002000b200002000b2000020009200002000720000200062000020000200002000020000200
 011000200c0530e6150e6320e6150c5330e6150e6220e6150c0530e6250e6250e6150c5330e6150e6320e6150c0530e6150e6320e6150c5330e6150e6220e6150c0530e6220e6150e6220c5530e6150e6220c053
 011000000000002135021450215500000021550214502135000000214502155021650000002135021650215500000021450216502135001000215502165021450010002135021650215500000021450216502135
 011000001a042000001a0421a042000001a0451a0451a042260421a0451a0421a042000001e0451e0431e0451a0452104221045210421d0421e0451e0421e0421d0421e0421e0451e0421d0451e0451e0451e045

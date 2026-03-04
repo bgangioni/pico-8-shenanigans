@@ -3,11 +3,10 @@ version 43
 __lua__
 function _init()
 	c = 0
-	l =1
 end
 
 function _update()
-	c=c+1
+	c=c+4
 end	
 
 function _draw()
@@ -16,30 +15,27 @@ function _draw()
 	for i = 0, 127 do
 		a = cos(c/1200+i/2000)*1
 		
-		p[1] ={x = 63+sin(a)*16}
-		p[2] ={x = 63+sin(a+0.25)*16}
-		p[3] ={x = 63+sin(a+0.5)*16}
-		p[4] ={x = 63+sin(a+0.75)*16}
+		p[1] ={y = 96+sin(a)*16}
+		p[2] ={y = 96+sin(a+0.25)*16}
+		p[3] ={y = 96+sin(a+0.5)*16}
+		p[4] ={y = 96+sin(a+0.75)*16}
 
-		pair = i%2 == 0
-		if pair then
-			if (p[1].x < p[2].x) then
-				line(p[1].x,i,p[2].x,i,7)
-			end
-			if (p[2].x < p[3].x) then
-				line(p[2].x,i,p[3].x,i,8)
-				pset(p[2].x, i, 0)
-			end
-			if (p[3].x < p[4].x) then
-				line(p[3].x,i,p[4].x,i,9)
-				pset(p[3].x, i,0)
-			end
-			if (p[4].x < p[1].x) then
-				line(p[4].x,i,p[1].x,i,10)
-				pset(p[4].x,i,0)
-				pset(p[1].x, i, 0)
+		if (p[1].y < p[2].y) then
+			line(i,p[1].y,i,p[2].y,7)
+		end
+		if (p[2].y < p[3].y) then
+			line(i,p[2].y,i,p[3].y,10)
+			pset(i,p[2].y,0)
+		end
+		if (p[3].y < p[4].y) then
+			line(i,p[3].y,i,p[4].y,7)
+			pset(i,p[3].y,0)
+		end
+		if (p[4].y < p[1].y) then
+			line(i,p[4].y,i,p[1].y,12)
+			pset(i,p[4].y,0)
+			pset(i,p[1].y,0)
 
-			end
 		end
 	end
 end
