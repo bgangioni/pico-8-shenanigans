@@ -3,7 +3,7 @@ version 43
 __lua__
 function _init()
 
-	gamestatus = "pause"
+	gamestatus = "playing"
 	coins = 3
 	points = 1936
 	
@@ -49,6 +49,20 @@ end
 --### UPDATE FUNCTIONS
 function update_player()
 	pl.sprite.n = 1+flr(timer[1]%20/5)
+	if btn(0) then
+		pl.sprite.xflip = true
+		pl.x -= pl.speed
+	end
+	if btn(1) then
+		pl.sprite.xflip = false
+		pl.x += pl.speed
+	end
+	if btn(2) then
+		pl.z -= pl.speed
+	end
+	if btn(3) then
+		pl.z += pl.speed
+	end
 end
 
 function update_enemy(ene)
@@ -69,11 +83,12 @@ function _update()
 end	
 --#### DRAW FUNCTIONS
 function draw_player()
-	spr(pl.sprite.n,pl.x,pl.z+pl.y,pl.sprite.w,pl.sprite.h,pl.xflipped,pl.yflipped)
+	sx, sy = (pl.sprite.n % 16) * 8, (pl.sprite.n \ 16) * 8
+	sspr(sx,sy,pl.sprite.w*8,pl.sprite.h*8,pl.x,pl.z+pl.y,pl.sprite.w*16,pl.sprite.h*16,pl.sprite.xflip,pl.sprite.yflip)
 end
 
 function draw_enemy(ene)
-	spr(ene.sprite.n,ene.x,ene.z+ene.y,ene.sprite.w,ene.sprite.h,ene.xflipped,ene.yflipped)
+	spr(ene.sprite.n,ene.x,ene.z+ene.y,ene.sprite.w,ene.sprite.h,ene.sprite.xflip,ene.sprite.yflip)
 end
 
 function leading_zeroes(num,leng)
