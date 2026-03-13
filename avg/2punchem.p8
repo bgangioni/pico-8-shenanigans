@@ -8,19 +8,19 @@ function _init()
 	coins = 3
 	points = 1936
 	
-	debugger = {}
 	timer = {0,0,0}
-	
+
 	stage ={
 		zmin = 45,
 		zmax = 91,
 		xmin = -5,
 		xmax = 119,
 	}
-	
+
 	pl = {
 		lives = 3,
-		hp = 21,
+		hp = 20,
+		hittable = true,
 		x = 32,
 		y = 0,
 		z = 74,
@@ -36,16 +36,21 @@ function _init()
 			xflip = false,
 			yflip = false,
 		},
+
 		hitbox = {
 			x1 = 3,
-			z1 = 6,
 			x2 = 12,
-			z2 = 24,
-			visible = false
+			y1 = 25,
+			y2 = 8,
+			z1 = -3,
+			z2 = 3,
+			visible = false,
 		},
 	}
+
 	enemies = {}
 	bullets = {}
+	specialbullets = {}
 end
 
 --### UPDATE FUNCTIONS
@@ -78,26 +83,23 @@ function update_player()
 		if pl.z < stage.zmax then pl.z += pl.speed end
 	end
 	if btnp(4) and sub(pl.status,1,4) ~= "jump" then
-		pl.jumpdelay = pl.maxjumpdelay
-		pl.status = "jumping"
+				pl.jumpdelay = pl.maxjumpdelay
+				pl.status = "jumping"
 	end
 	if btnp(5) then
 		if pl.status == "jumping" then 
-			if btn(4) then
+			if btn(4) and pl.y > 44 then
 				pl.status = "jumpspecial"
+				hittimer = 0
+				pl.busy = true
 				-- CREATE JUMPSPECIAL BULLET HERE
 			else
 				pl.status = "jumphitting"
 			end
-		else
-			if btn(4) then
-				pl.status = "special"
-				-- CREATE SPECIAL BULLET HERE
-			else
+		elseif sub(pl.status,1,4) ~= "jump" then
 				pl.status = "hitting"
 				hittimer = 0
 				pl.busy = true
-			end
 		end
 	end
 end
@@ -109,6 +111,9 @@ end
 			pl.status = "idle"
 		end
 		if pl.status == "jumphitting" then
+			pl.sprite.n = 8
+		else
+			pl.sprite.n = 11
 		end
 	elseif pl.status == "walking" then
 		pl.sprite.n = 1+flr(timer[1]%20/5)
@@ -116,18 +121,79 @@ end
 			pl.status = "idle"
 		end
 	elseif pl.status == "hitting" then
-		pl.sprite.n = 5+hittimer
-		hittimer+=1 
-		if hittimer > 2 then pl.sprite.n = 7 end
-		if hittimer > 10 then
-			pl.status = "idle"
-			pl.busy = false 
+		if btn(4) then
+			pl.status = "special"
+			hittimer = 0
+			pl.busy = true
+			create_specialbullet(pl.x,pl.z,pl.y)
+		else
+			pl.sprite.n = 5+hittimer
+			hittimer+=1 
+			if hittimer > 2 then pl.sprite.n = 7 end
+			if hittimer > 10 then
+				pl.status = "idle"
+				pl.busy = false 
+			end
 		end
 	elseif pl.status == "special" then
+		pl.sprite.n = 9
+		hittimer += 1
+		if hittimer > 20 then
+			pl.status = "idle"
+			pl.busy = false
+		end
 	elseif pl.status == "jumpspecial" then
+		pl.sprite.n = 10
+		hittimer += 1
+		if hittimer > 20 then
+			pl.status = "jumping"
+			pl.busy = false
+		end
 	elseif pl.status == "falling" then
+		pl.sprite.n = 12
+		pl.hittable = false
+		pl.y += pl.jumpdelay
+		pl.jumpdelay -= 1
+		if pl.sprite.xflip then
+			if pl.x < 120 then pl.x+=2 end
+		else
+			if pl.x > -4 then pl.x -=2 end
+		end
+		if pl.y<1 then
+			pl.y = 0
+			pl.status = "fallen"
+			hittimer = 0
+		end
 	elseif pl.status == "fallen" then
+		pl.sprite.n = 13
+		hittimer += 1
+		if pl.hp < 1 then
+			pl.hp = 0
+			pl.status = "dying"
+			pl.lives -= 1
+		elseif hittimer > 20 then
+			pl.status = "idle"
+			pl.busy = false
+			pl.hittable = true
+		end
 	elseif pl.status == "dying" then
+		hittimer += 1
+		if timer[1] % 25 > 12 then
+			pl.sprite.n = 13
+		else
+			pl.sprite.n = 14
+		end
+		if hittimer > 100 then
+			if pl.lives < 1 then
+				pl.status = "gameover"
+			elseif btnp(4) or btnp(5) then
+				pl.hp = 100
+				pl.status = "idle"
+				pl.busy = false
+				pl.hittable = true
+			end
+		end
+
 	else --"idle" status
 		pl.sprite.n = 0
 	end
@@ -135,12 +201,91 @@ end
 
 function update_enemy(ene)
 end
+
+function create_specialbullet(bx,bz,by)
+	specialbullets[#specialbullets+1] = {
+		x = bx+20,
+		y = by+24,
+		z = bz,
+		len = 20,
+		speed = 4,
+		damage = 10,
+		colors = {10,7,10}
+	}
+end
+
+function delete_specialbullet(sbul)
+	specialbullets = {}
+end
+
+function update_specialbullet(sbul)
+	sbul.x += sbul.speed
+	if sbul.x > 128+sbul.len then
+		delete_specialbullet(sbul)
+	end
+	--[[--collission with enemies
+	for ene in all(enemies) do
+		if sbul.x < (pl.x + ene.hitbox.x2)
+			and (sbul.x+sbul.len) > (ene.x + ene.hitbox.x1)
+			and sbul.y < (ene.y + ene.hitbox.y1)
+			and sbul.y > (ene.y + ene.hitbox.y2) 
+			and sbul.z > (ene.z + ene.hitbox.z1)
+			and sbul.z < (ene.z + ene.hitbox.z2)
+		then
+			if ene.hittable then
+				ene.hp -= bul.damage
+				delete_bullet(bul)
+				ene.status = "falling"
+				ene.jumpdelay = pl.maxjumpdelay / 2
+			end
+		end
+	end--]]
+end
+
+function create_bullet(bx,bz,by,blen,bspeed,c1,c2,c3)
+	c1,c2,c3 = c1 or 8, c2 or 11, c3 or nil
+	bullets[(#bullets)+1] = {
+		x = bx,
+		z = bz,
+		y = by,
+		len = blen,
+		speed = bspeed,
+		damage = 5,
+		colors = {c1,c2,c3},
+	}
+end
+
+function delete_bullet(bul)
+	bullets = {} -- FIX THIS LATER (only 1 bullet at the same time)
+end
+
 function update_bullet(bul)
+	bul.x -= bul.speed
+	if bul.x < -bul.len then
+		delete_bullet(bul)
+	end
+	--collission with player
+	if bul.x < (pl.x + pl.hitbox.x2) and (bul.x+bul.len) > (pl.x + pl.hitbox.x1)
+		and bul.y < (pl.y + pl.hitbox.y1) and bul.y > (pl.y + pl.hitbox.y2) 
+		 and bul.z > (pl.z + pl.hitbox.z1) and bul.z < (pl.z + pl.hitbox.z2)
+	then
+		if pl.hittable then
+			pl.hp -= bul.damage
+			delete_bullet(bul)
+			pl.status = "falling"
+			pl.busy = true
+			pl.jumpdelay = pl.maxjumpdelay / 2
+		end
+	end
 end
 
 --### MAIN UPDATE
 function _update()
-	timer[1]+=1
+	timer[1]+=1	
+	--for testing only
+	if timer[1]%100 == 0 then
+		create_bullet(128,pl.z,pl.y+24,20,8)
+	end
 	update_player()
 	for ene in all(enemies) do
 		update_enemy(ene)
@@ -148,7 +293,9 @@ function _update()
 	for bul in all(bullets) do
 		update_bullet(bul)
 	end
-	debugger[1] = pl.status
+	for sbul in all(specialbullets) do
+		update_specialbullet(sbul)
+	end
 end	
 
 --#### DRAW FUNCTIONS
@@ -156,11 +303,18 @@ function draw_player()
 	--shadow
 	ovalfill(pl.x-1,pl.z+28,pl.x+16,pl.z+32,1)
 
+	if pl.hitbox.visible then
+		rect(pl.x+pl.hitbox.x1,pl.z+31-pl.y-pl.hitbox.y1+pl.hitbox.z1,
+			pl.x+pl.hitbox.x2,pl.z+31-pl.y-pl.hitbox.y2+pl.hitbox.z1,14)
+	end
+
 	sx, sy = (pl.sprite.n % 16) * 8, (pl.sprite.n \ 16) * 8
-	sspr(sx,sy,pl.sprite.w*8,pl.sprite.h*8,pl.x,pl.z-pl.y,pl.sprite.w*16,pl.sprite.h*16,pl.sprite.xflip,pl.sprite.yflip)
+	sspr(sx,sy,pl.sprite.w*8,pl.sprite.h*8,pl.x,pl.z-pl.y,
+		pl.sprite.w*16,pl.sprite.h*16,pl.sprite.xflip,pl.sprite.yflip)
 
 	if pl.hitbox.visible then
-		rect(pl.x+pl.hitbox.x1,pl.z-pl.y+pl.hitbox.z1,pl.x+pl.hitbox.x2,pl.z-pl.y+pl.hitbox.z2,15)
+		rect(pl.x+pl.hitbox.x1,pl.z+31-pl.y-pl.hitbox.y1+pl.hitbox.z2,
+			pl.x+pl.hitbox.x2,pl.z+31-pl.y-pl.hitbox.y2+pl.hitbox.z2,15)
 	end
 end
 
@@ -197,7 +351,7 @@ function draw_panel()
 	if gamestatus == "pause" then pausetext = "pause" end
 	rectfill(0,0,128,21,0)
 	decorate_text("   1p     "..leading_zeroes(points,6).."  2p",8,5,6,7,13,false)
-	decorate_text("  c="..coins.."                  wait",8,11,6,7,13,false)
+	decorate_text("  c="..pl.lives.."                  wait",8,11,6,7,13,false)
 	decorate_text(pausetext,8,16,6,7,13,false)
 	
 	decorate_text(leading_zeroes(pl.hp,3),48,11,6,7,13,true)
@@ -207,13 +361,30 @@ function draw_panel()
 	else
 		spr(66,28,5,2,2)
 	end
-	if timer[1]%50 > 24 then
+	--if timer[1]%50 > 24 then
 		print("wait",100,11,0)
-	end
+	--end
 	
 	rectfill(0,124,128,128,0)
 end
 
+function draw_bullet(bul)
+	local counter = 0
+	for col in all(bul.colors) do
+		local ypos = bul.z+31-bul.y+counter
+		line(bul.x,ypos,bul.x+bul.len,ypos,col)
+		counter +=1
+	end
+end
+
+function draw_specialbullet(sbul)
+	local counter = 0
+	for col in all(sbul.colors) do
+		local ypos = sbul.z+31-sbul.y+counter
+		line(sbul.x,ypos,sbul.x-sbul.len,ypos,col)
+		counter +=1
+	end
+end
 -- ### MAIN DRAW
 function _draw()
 	cls()
@@ -222,34 +393,37 @@ function _draw()
 	for ene in all(enemies) do
 		draw_enemy(ene)
 	end
-	
+	for bul in all(bullets) do
+		draw_bullet(bul)
+	end
+	for sbul in all(specialbullets) do
+		draw_specialbullet(sbul)
+	end
 	draw_panel()
 --print debugger messages:
+	print("",100,0)
 	for msg in all(debugger) do
 		print (msg,9)
-	end
-	for msg in all(debugger) do
-		print(msg)
 	end
 end
 
 __gfx__
-00440000004400000044000000440000004400000004400000044000000000000000000000000000000000000000000000000000000000000000000000000000
-00490000004900000049000000490000004900000004900000049000000440000000000000000000000000000000000000000000000000000000000000000000
-00440000004400000044000000440000004400000004400000044000000490000000000000000000000000000000000000000000000000000000000000000000
-04444000044440000444400004444000044440000044440000094400000440000000000000000000000000000000000000000000000000000000000000000000
-09494040094440000944404009444000094940000094494000049999004499000000000000000000000000000000000000000000000000000000000000000000
-00940400094440000944040009444000009440000009940000444000040440900000000000000000000000000000000000000000000000000000000000000000
-00440000009404000944000000940400004440000004400000444000040440090000000000000000000000000000000000000000000000000000000000000000
-00440000004400000944000000440000004400000004400000044000000440090000000000000000000000000000000000000000000000000000000000000000
-04444000004400000044000000440000004400000044440000444400000440000000000000000000000000000000000000000000000000000000000000000000
-09444000009400000099000000994000009900000094440000944400004444000000000000000000000000000000000000000000000000000000000000000000
-00900400000940000049000000094000000940000090040000900400009444000000000000000000000000000000000000000000000000000000000000000000
-00900400000940000040900000094000000904000090040000900400009004000000000000000000000000000000000000000000000000000000000000000000
-00900400000940000040900000490000009004000090040009004000009004000000000000000000000000000000000000000000000000000000000000000000
-00900400009040000400900000090000009004000090040009004000090040000000000000000000000000000000000000000000000000000000000000000000
-09000400000040000400900000900000090004000900040090004000900040000000000000000000000000000000000000000000000000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+00440000004400000044000000440000004400000004400000044000000000004400000000088000000880000000000000000000000000000000000000000000
+0049000000490000004900000049000000490000000490000004900000044000490000000008a0000008a0000044000000040000000000000000000000000000
+00440000004400000044000000440000004400000004400000044000000490004400000000088000000880000049000000490000000000000000000000000000
+044440000444400004444000044440000444400000444400000944000004400044900000000a8999000a80000044000000440000000000000000000000000000
+0949404009444000094440400944400009494000009449400004999900449900949400000008aaaa0008a9000444400009440040000000000000000000000000
+0094040009444000094404000944400000944000000994000044400004044090094040000008800000088a900944400004944400000000000000000000000000
+00440000009404000944000000940400004440000004400000444000040440090440400000088000000880a90099044004499000000000000000000000000000
+00440000004400000944000000440000004400000004400000044000000440090440000000088000000880000044000004440000000000000000000000000000
+04444000004400000044000000440000004400000044440000444400000440000044000000888800008888000444400000994400000000000000000000000000
+09444000009400000099000000994000009900000094440000944400004444000094400000a8880000a888000944400000009040000000000000000000000000
+00900400000940000049000000094000000940000090040000900400009444000090040000a0080000a008000090040000000904040000000000000000000000
+00900400000940000040900000094000000904000090040000900400009004000090004000a0080000a008000090040000000900490000000000000000000000
+0090040000094000004090000049000000900400009004000900400000900400000990400a0080000a0080000090040000000000440004400000000000000000
+0090040000904000040090000009000000900400009004000900400009004000000009040a0080000a0080000900400000000000944499040000000000000000
+090004000000400004009000009000000900040009000400900040009000400000000004a0008000a00080000000000000000000994900940000000000000000
+00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000900000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
 00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
