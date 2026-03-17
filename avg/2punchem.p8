@@ -53,9 +53,9 @@ function _init()
 	bullets = {}
 	specialbullets = {}
 	specialdiagonals = {}
-	create_enemy()
-	create_enemy()
-	create_enemy()
+	create_enemy(nil,nil,1)
+	create_enemy(nil,nil,1)
+	create_enemy(nil,nil,1)
 end
 
 --### UPDATE FUNCTIONS
@@ -318,8 +318,12 @@ function update_enemy(ene)
 	if ene.status == "walking" then
 		ene.sprite.n = 129+flr(timer[1]%20/5)
 		if ene.z > pl.z then ene.z -=ene.speed
-		elseif ene.z < pl.z then ene.z +=ene.speed end
-
+		elseif ene.z < pl.z then ene.z +=ene.speed 
+		elseif ene.enemytype == 2 then
+			ene.status = "shooting"
+			ene.hittimer = 0
+			create_bullet(ene.x,ene.z,ene.y+24,ene.sprite.xflip)
+		end
 		if ene.x > pl.x + 8 then
 			ene.x -=ene.speed
 			ene.sprite.xflip = true
@@ -327,8 +331,10 @@ function update_enemy(ene)
 			ene.x +=ene.speed
 			ene.sprite.xflip = false
 		else
+			if ene.enemytype ~= 2 then 
 			ene.status = "hitting"
 			ene.hittimer = 0
+			end
 		end
 	elseif ene.status == "hitting" then
 			ene.sprite.n = 133+flr(ene.hittimer/2)
@@ -360,6 +366,11 @@ function update_enemy(ene)
 			if ene.hittimer > 10 then
 				ene.status = "walking"
 			end
+	elseif ene.status == "shooting" then
+		ene.sprite.n = 137
+		ene.hittimer += 1
+		if ene.hittimer > 10 then make_him_wander(ene) end
+
 	elseif ene.status == "wandering" then
 		ene.sprite.n = 129+flr(timer[1]%20/5)
 		if ene.z > ene.wandertarget.z then
@@ -479,17 +490,18 @@ function update_specialbullet(sbul)
 	end
 end
 
-function create_bullet(bx,bz,by,bdir,blen,bspeed,c1,c2,c3)
-	c1,c2,c3 = c1 or 8, c2 or 11, c3 or nil
+function create_bullet(bx,bz,by,xflip,blen,bspeed,c1,c2,c3)
+	local bdir = 1
+	if xflip then bdir = -1 end
 	bullets[(#bullets)+1] = {
 		x = bx,
 		z = bz,
 		y = by,
 		dir = bdir,
-		len = blen,
-		speed = bspeed,
+		len = blen or 20,
+		speed = bspeed or 4,
 		damage = 10,
-		colors = {c1,c2,c3},
+		colors = {c1 or 8,c2 or 11,c3},
 	}
 end
 
@@ -560,10 +572,6 @@ end
 function _update()
 	timer[1]+=1	
 	--for testing only
-	if timer[1]%100 == 0 and testattack then
-		local coin = flr(rnd(2))
-		create_bullet(128*coin,pl.z,pl.y+24,1-(2*coin),20,8)
-	end
 	update_player()
 	for ene in all(enemies) do
 		update_enemy(ene)
@@ -595,7 +603,7 @@ function draw_enemy(ene)
 			ene.x+ene.hitbox.x2,ene.z+31-ene.y-ene.hitbox.y2+ene.hitbox.z1,14)
 	end
 
-	if ene.enemytype == 2 then pal(8,2) end
+	if ene.enemytype == 2 then pal(2,8) end
 	sx, sy = (ene.sprite.n % 16) * 8, (ene.sprite.n \ 16) * 8
 	sspr(sx,sy,ene.sprite.w*8,ene.sprite.h*8,ene.x,ene.z-ene.y,
 		ene.sprite.w*16,ene.sprite.h*16,ene.sprite.xflip,ene.sprite.yflip)
