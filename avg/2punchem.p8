@@ -6,7 +6,7 @@ function _init()
 	debugger = {}
 	gamestatus = "playing"
 	coins = 3
-	points = 1936
+	points = 0
 	
 	hittimer = 0
 	timer = {0,0,0}
@@ -53,6 +53,8 @@ function _init()
 	bullets = {}
 	specialbullets = {}
 	specialdiagonals = {}
+	create_enemy()
+	create_enemy()
 	create_enemy()
 end
 
@@ -263,7 +265,7 @@ end
 end
 
 function create_enemy(ex,ez,et)
-	eet = et or 1
+	eet = et or 1+flr(rnd(2))
 	if eet == 1 then
 		hhp = 40
 	elseif eet == 2 then
@@ -278,11 +280,11 @@ function create_enemy(ex,ez,et)
 		maxhp = hhp,
 		hittable = true,
 		hittimer = 0,
-		x = ex or 130,
+		x = ex or -20 + 150 * flr(rnd(2)),
 		y = 0,
-		z = ez or 44,
+		z = ez or 44+flr(rnd(46)),
 		speed = 1, 
-		status = "walking", -- walking, hitting, falling, fallen, dying
+		status = "wandering", -- walking, hitting, falling, fallen, dying
 		jumpdelay = -10,
 		maxjumpdelay = 10,
 		sprite = {
@@ -293,7 +295,7 @@ function create_enemy(ex,ez,et)
 			yflip = false,
 		},
 
-		wandertarget = {x= 0, y = 0},
+		wandertarget = {x= flr(rnd(120)), z = 44 + flr(rnd(46))},
 		hitbox = {
 			x1 = 4,
 			x2 = 12,
@@ -304,6 +306,12 @@ function create_enemy(ex,ez,et)
 			visible = false,
 		},
 	}
+end
+
+function make_him_wander(ene)
+	ene.status = "wandering"
+	ene.wandertarget.x = flr(rnd(120))
+	ene.wandertarget.z = flr(44 + rnd(46))
 end
 
 function update_enemy(ene)
@@ -340,11 +348,11 @@ function update_enemy(ene)
 							pl.jumpdelay = pl.maxjumpdelay / 2
 							pl.status = "falling"
 							pl.busy = true
-							ene.status = "wandering"
-							ene.wandertarget.x = flr(rnd(120))
-							ene.wandertarget.z = flr(44 + rnd(46))
+							make_him_wander(ene)
 							debugger[1] = ene.wandertarget.x
 							debugger[2] = ene.wandertarget.z
+						else
+							make_him_wander(ene)
 						end
 					end
 				end
@@ -391,7 +399,7 @@ function update_enemy(ene)
 			ene.status = "dying"
 			ene.lives -= 1
 		elseif ene.hittimer > 20 then
-			ene.status = "walking"
+			make_him_wander(ene)
 			ene.hittable = true
 		end
 	elseif ene.status == "dying" then
@@ -404,7 +412,11 @@ function update_enemy(ene)
 		if ene.hittimer > 100 then
 			if ene.lives < 1 then
 				delete_enemy(ene)
-				create_enemy()
+				if #enemies == 0 then
+					create_enemy(nil,nil,1)
+					create_enemy(nil,nil,1)
+					create_enemy(nil,nil,2)
+				end
 			else
 				ene.hp = ene.maxhp
 				ene.status = "walking"
@@ -415,7 +427,8 @@ function update_enemy(ene)
 end
 
 function delete_enemy(ene)
-	enemies = {}
+	--enemies = {}
+	del(enemies,ene)
 end
 
 function create_specialbullet(bx,bz,by)
@@ -567,19 +580,26 @@ function _update()
 end	
 
 --#### DRAW FUNCTIONS
+function draw_allshadows()
+	for ene in all(enemies) do
+		ovalfill(ene.x-1,ene.z+28,ene.x+16,ene.z+32,1)
+	end
+	ovalfill(pl.x-1,pl.z+28,pl.x+16,pl.z+32,1)
+end
+
 function draw_enemy(ene)
 	--shadow
-	ovalfill(ene.x-1,ene.z+28,ene.x+16,ene.z+32,1)
 
 	if ene.hitbox.visible then
 		rect(ene.x+ene.hitbox.x1,ene.z+31-ene.y-ene.hitbox.y1+ene.hitbox.z1,
 			ene.x+ene.hitbox.x2,ene.z+31-ene.y-ene.hitbox.y2+ene.hitbox.z1,14)
 	end
 
+	if ene.enemytype == 2 then pal(8,2) end
 	sx, sy = (ene.sprite.n % 16) * 8, (ene.sprite.n \ 16) * 8
 	sspr(sx,sy,ene.sprite.w*8,ene.sprite.h*8,ene.x,ene.z-ene.y,
 		ene.sprite.w*16,ene.sprite.h*16,ene.sprite.xflip,ene.sprite.yflip)
-
+	pal()
 
 	if ene.hitbox.visible then
 		rect(ene.x+ene.hitbox.x1,ene.z+31-ene.y-ene.hitbox.y1,
@@ -594,7 +614,6 @@ end
 
 function draw_player()
 	--shadow
-	ovalfill(pl.x-1,pl.z+28,pl.x+16,pl.z+32,1)
 
 	if pl.hitbox.visible then
 		rect(pl.x+pl.hitbox.x1,pl.z+31-pl.y-pl.hitbox.y1+pl.hitbox.z1,
@@ -691,6 +710,7 @@ end
 function _draw()
 	cls()
 	map(0,0,0,16,16,14)
+	draw_allshadows()
 	for sbul in all(specialbullets) do
 		draw_specialbullet(sbul)
 	end
