@@ -3,7 +3,7 @@ version 43
 __lua__
 function _init()
 	testattack = false
-	debugger = {0,0,0,0,0,0,0,0,0,0,}
+	debugger = {}
 	gamestatus = "intro"
 	coins = 3
 	points = 0
@@ -265,7 +265,7 @@ end
 		hittimer += 1
 		if hittimer > 100 then
 			timer[1] = 0
-			gamestatus = "intro"
+			_init()
 		end
 	else --"idle" status
 		pl.sprite.n = 0
@@ -317,13 +317,10 @@ function create_enemy(ex,ez,et)
 end
 
 function make_him_wander(ene)
-	debugger[2] += 1
 	ene.status = "wandering"
 	ene.hittable = true
 	ene.wandertarget.x = flr(rnd(120))
 	ene.wandertarget.z = flr(44 + rnd(46))
-	debugger[3] = ene.wandertarget.x
-	debugger[4] = ene.wandertarget.y
 end
 
 function update_enemy(ene)
@@ -379,7 +376,6 @@ function update_enemy(ene)
 		if ene.hittimer > 10 then make_him_wander(ene) end
 
 	elseif ene.status == "wandering" then
-		debugger[5] += 1
 		ene.sprite.n = 129+flr(timer[1]%20/5)
 		if ene.z > ene.wandertarget.z then
 			ene.z -=ene.speed
@@ -696,9 +692,9 @@ function draw_panel()
 	else
 		spr(46,28,5,2,2)
 	end
-	--if timer[1]%50 > 24 then
+	if timer[1]%50 > 24 then
 		print("wait",100,11,0)
-	--end
+	end
 	
 	rectfill(0,124,128,128,0)
 end
@@ -757,6 +753,13 @@ function _draw()
 
 	elseif gamestatus == "menu" then
 		cls(1)
+		for i = 0 , 4 do
+			line(0,i,128,i,13)
+			line(0,4+i*i,128,4+i*i,13)
+			line(0,123-(i*i),128,123-(i*i),13)
+			line(0,127-i,128,127-i,13)
+		end
+
 		circfill(71,58,30,0)
 		local ameripos = {x = 80, y = 30 }
 		rectfill(ameripos.x-37,ameripos.y-1,ameripos.x+1,ameripos.y+9,0)
@@ -769,13 +772,32 @@ function _draw()
 		spr(120,avgpos.x,avgpos.y+8)
 		decorate_text("★★★",avgpos.x+12,avgpos.y+10,9,10,8,false)
 
-		for i = 0,20 do
-			line(0,75+i,48,88,9)
-			line(138,75+i,90,88,9)
+		for i = 0,5 do
+			--right beam
+			line(0,76+i,48,88,15)
+			line(0,80+i,48,88,10)
+			line(0,88+i,48,88,10)
+			line(0,92+i,48,88,15)
+			line(0,84+i,48,88,9)
+			--left beam
+			line(138,76+i,90,88,15)
+			line(138,80+i,90,88,10)
+			line(138,88+i,90,88,10)
+			line(138,92+i,90,88,15)
+			line(138,84+i,90,88,9)
 		end
-
+		-- white borders
+		line(0,76,48,88,7)
+		line(0,97,48,88,7)
+		line(138,76,90,88,7)
+		line(138,97,90,88,7)
+		
 		sspr(72,0,8,16,47,80,16,32,true,false)
 		sspr(72,0,8,16,80,80,16,32,false,false)
+
+	if timer[1]%50 > 25 then
+		print("press ❎ to start",avgpos.x-10,avgpos.y+20,7)
+	end
 
 	elseif gamestatus == "playing" then
 		cls()
